@@ -1,0 +1,17 @@
+//片段着色器实现自己计算深度值，深度值=片段与光源之间的距离。
+//计算深度值可以使后续的阴影计算更直观
+
+#version 330 core
+in vec4 fragPos;
+
+uniform vec3 lightPos;
+uniform float far_plane;
+
+void main()
+{
+	//片段与光源的距离
+	float lightDistance=length(lightPos-fragPos.xyz);
+	//使得值在[0,1]的范围（深度值就是这个范围）
+	 lightDistance=lightDistance/far_plane;
+	gl_FragDepth=lightDistance;//修改片段深度
+}

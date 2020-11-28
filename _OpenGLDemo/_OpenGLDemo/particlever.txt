@@ -1,0 +1,35 @@
+/*#version 440 core
+layout(location=0)in vec4 aTex;//vec2的位置和vec2的uv
+
+uniform mat4 projection;
+
+uniform vec2 offset;
+
+out vec2 Texcoords;
+
+void main()
+{
+	float scale=10;
+	Texcoords=aTex.zw;
+	gl_Position=projection*vec4(aTex.xy*scale+offset,0,1);
+}*/
+
+
+#version 440 core
+layout(location=0)in vec4 aTex;//vec2的位置和vec2的uv
+uniform mat4 projection;
+
+out vec4 Color;
+out vec2 Texcoords;
+
+uniform vec2 offset[500];
+uniform vec4 color[500];
+
+void main()
+{
+	Color=color[gl_InstanceID];
+	float scale=10;
+	Texcoords=aTex.zw;
+	gl_Position=projection*vec4(aTex.xy*scale+offset[gl_InstanceID],0,1);
+}
+

@@ -1,0 +1,53 @@
+#version 330 core
+
+in vec2 Texcoords;
+
+out float fragColor;
+
+uniform sampler2D gPosition;
+uniform sampler2D gNormal;
+uniform sampler2D texNoise;
+
+uniform vec3 samples[64];
+
+uniform mat4 projection;
+
+float radius=0.5;
+
+//使得4X4的随机旋转向量纹理能够平铺整个屏幕
+const vec2 noiseScale=vec2(800.0/4,600.0/4);
+
+void main()
+{
+	vec3 fragPos=texture(gPosition,Texcoords).rgb;
+	vec3 normal=texture(gNormal,Texcoords).rgb;
+	vec3 randomVec=normalize(texture(texNoise,Texcoords*noiseScale).rgb);
+
+	vec3 tangent=normalize(randomVec-normal*dot(randomVec,normal));
+	vec3 bitangent=cross(normal,tangent);
+	mat3 TBN=mat3(tangent,bitangent,normal);
+
+	float occlusion=0;
+	for(int i=0;i<64;i++)
+	{
+		//采样点位置
+		vec3 sample=TBN*samples[i];//切线空间到观察空间
+		sample=fragPos+sample*radius;
+
+		vec4 offset=vec4(sample,1);
+		offset=projection*offset;//观察空间到裁剪空间
+		offset.xyz/=offset.w;//透视划分
+		offset.xyz=offset.xyz*0.5+0.5;//0-1范围
+
+		float sampleDepth=texture(gPosition,offset.xy).z;
+
+		//范围检测
+		//当检测一个靠近表面边缘的片段时，它将会考虑测试表面之下的表面的深度值；
+		//这些值将会(不正确地)影响遮蔽因子
+		//引入一个范围测试从而保证我们只当被测深度值在取样半径内时影响遮蔽因子
+		float rangeCheck=smoothstep(0,1,radius/abs(fragPos.z-sampleDepth));
+		occlusion+=(sampleDepth>sample.z?1:0)*rangeCheck;
+	}	
+	occlusion=(1-occlusion)/64.0;
+	fragColor=occlusion;
+}

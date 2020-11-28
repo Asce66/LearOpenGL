@@ -1,0 +1,40 @@
+//爆破物体的几何着色器
+//实现方法：将每个三角形的顶点沿着法线方向移动一定的距离
+#version 330 core
+
+layout(triangles)in;
+layout(triangle_strip, max_vertices = 3)out;
+
+in VS_OUT{
+	vec2 texcoords;
+}gs_in[];
+
+uniform float time;
+out vec2 Texcoords;
+
+//通过三个顶点获得两条向量，二者叉乘就可以获得法向量
+vec3 GetNormal()
+{
+	vec3 p1=vec3(gl_in[0].gl_Position)-vec3(gl_in[1].gl_Position);
+	vec3 p2=vec3(gl_in[2].gl_Position)-vec3(gl_in[1].gl_Position);
+	return normalize(cross(p1,p2));
+}
+
+vec4 explode(vec4 position,vec3 normal)
+{
+	float magnitude =2.0;//sin范围为-1到1，我们把它变为0-1（因为不需要物体向内部爆炸）
+	vec3 direction=normal*((sin(time)+1.0)/2.0)*magnitude;
+	return position+vec4(direction,0);
+
+}
+void main()
+{
+	vec3 normal=GetNormal();
+	for(int i=0;i<3;i++)
+	{
+		gl_Position=explode(gl_in[i].gl_Position,normal);
+		Texcoords=gs_in[i].texcoords;
+		EmitVertex();
+	}
+	EndPrimitive();
+}

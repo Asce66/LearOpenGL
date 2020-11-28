@@ -1,0 +1,9 @@
+#version 330 core
+layout(location=0)in vec4 Vertex;//Œª÷√xy”ÎŒ∆¿Ìxy
+out vec2 Texcoords;
+uniform mat4 projection;
+void main()
+{
+	Texcoords=Vertex.zw;
+	gl_Position=projection*vec4(Vertex.xy,0,1);
+}

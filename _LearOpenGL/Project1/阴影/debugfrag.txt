@@ -1,0 +1,18 @@
+#version 330 core
+in vec2 Texcoords;
+uniform sampler2D depthMap;
+out vec4 fragColor;
+uniform float near_plane,far_plane;
+
+//如果光照的投影是透视投影需要这样变化深度值
+float LinearizeDepth(float depth)
+{
+	float z=depth*2-1;
+	return (2.0 * near_plane * far_plane) / (far_plane + near_plane - z * (far_plane - near_plane));
+}
+void main()
+{
+	float depthValue=texture(depthMap,Texcoords).r;
+	//fragColor=vec4(vec3(LinearizeDepth(depthValue)/far_plane),1.0);//透视投影需要这样
+	fragColor=vec4(vec3(depthValue),1.0);//正交投影
+}

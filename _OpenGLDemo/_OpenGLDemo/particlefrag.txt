@@ -1,0 +1,31 @@
+/*#version 440 core
+
+in vec2 Texcoords;
+
+out vec4 fragColor;
+
+uniform vec4 color;
+
+uniform sampler2D sprite;
+
+void main()
+{
+	fragColor=texture(sprite,Texcoords)*color;
+}*/
+
+
+
+#version 440 core
+
+in vec2 Texcoords;
+
+out vec4 fragColor;
+
+in vec4 Color;
+
+uniform sampler2D sprite;
+
+void main()
+{
+	fragColor=texture(sprite,Texcoords)*Color;
+}

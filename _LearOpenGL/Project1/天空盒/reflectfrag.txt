@@ -1,0 +1,15 @@
+#version 330 core
+out vec4 fragColor;
+uniform samplerCube cubeMap;
+uniform vec3 camerPos;
+in vec3 normal;
+in vec3 fragPos;
+
+void main()
+{
+	float ratio = 1.00 / 1.52;//光线出发物质与光线进入物质折射率比值
+	vec3 viewDir=normalize(fragPos-camerPos);
+	//vec3 refDir=reflect(viewDir,normalize(normal));//反射
+	vec3 refDir=refract(viewDir,normalize(normal),ratio);//折射
+	fragColor=vec4(texture(cubeMap,refDir).rgb,1);
+}

@@ -1,0 +1,54 @@
+#version 330 core
+
+struct Light{
+	vec3 position;
+	vec3 color;
+	float radius;//光半径
+	float linear;//光衰减一次项系数
+	float quadratic;//二次项系数
+};
+
+in vec2 Texcoords;
+
+const int LIGHTNUM=32;
+uniform Light lights[LIGHTNUM];
+
+uniform sampler2D gPosition,gNormal,gAlbedoSpec;
+
+uniform vec3 viewPos;
+
+out vec4 fragColor; 
+
+void main()
+{
+
+	vec3 normal=normalize(texture(gNormal,Texcoords).rgb);
+	vec3 fragPos=texture(gPosition,Texcoords).rgb;
+	vec3 Diffuse=texture(gAlbedoSpec,Texcoords).rgb;
+	float Specular=texture(gAlbedoSpec,Texcoords).a;
+
+	vec3 color=Diffuse*0.1;
+	vec3 viewDir=normalize(viewPos-fragPos);
+	//计算所有光源的光照
+	for(int i=0;i<LIGHTNUM;i++)
+	{
+		vec3 lightDir=lights[i].position-fragPos;
+		float distance=length(lightDir);
+		if(distance<lights[i].radius)//判断该像素块是否在这个光源可照射范围内
+		{
+			//diffuse
+			lightDir=normalize(lightDir);
+			float diff=max(0,dot(lightDir,normal));
+			vec3 diffuse=lights[i].color*Diffuse*diff;
+			//specular		
+			vec3 halfDir=normalize(lightDir+viewDir);
+			float spec=pow(max(0,dot(halfDir,normal)),16);
+			vec3 specular=lights[i].color*spec*Specular;
+			//衰减
+			float atten=1.0/(1+distance*lights[i].linear+distance*distance*lights[i].quadratic);
+			color+=(diffuse+specular)*atten;
+		}
+
+		fragColor=vec4(color,1);
+	}
+}

@@ -1,0 +1,110 @@
+#version 330 core
+
+const float PI=3.1415926;
+
+out vec4 fragColor;
+
+in vec3 WorldPos;
+in vec2 Texcoords;
+in vec3 Normal;
+
+uniform vec3 camPos;
+
+uniform vec3 albedo;
+uniform float metallic;//金属度
+uniform float roughness;//粗糙度
+uniform float ao;//环境遮罩
+
+//光源
+uniform vec3 lightPositions[4];
+uniform vec3 lightColors[4];
+
+//菲涅尔函数(计算镜面反射和漫反射的比例),返回的是镜面反射百分比
+vec3 fresnelSchlick(float costheta,vec3 F0)
+{
+	return F0 + (1.0 - F0) * pow(1.0 - costheta, 5.0);
+}
+
+//正态分布函数
+float DistributionGGX(vec3 N,vec3 H,float roughness)
+{
+	float a=roughness*roughness;
+	float a2=a*a;
+	float NdotH=max(0,dot(N,H));
+	float NdotH2=NdotH*NdotH;
+
+	float nom=a2;
+	float denom=NdotH*(a2-1.0)+1.0;
+	denom=PI*denom*denom;
+
+	return nom/denom;
+}
+
+//几何函数
+float GeometrySchlickGGX(float NdotV,float roughness)
+{
+	float r=roughness+1;
+	float k=r*r/8.0;
+
+	float nom=NdotV;
+	float denom=NdotV*(1.0-k)+1.0;
+
+	return nom/denom;
+}
+
+float GeometrySmith(vec3 N,vec3 V,vec3 L,float roughness)
+{
+	float NdotV=max(dot(N,V),0);
+	float ggx1=GeometrySchlickGGX(NdotV,roughness);
+
+	float NdotL=max(dot(N,L),0);
+	float ggx2=GeometrySchlickGGX(NdotL,roughness);
+
+	return ggx1*ggx2;
+}
+
+void main()
+{
+	vec3 N=normalize(Normal);
+	vec3 V=normalize(camPos-WorldPos);
+
+	//F0为0度入射角的反射，表示直接垂直与观察平面会有多少光进行反射
+	//材料不同F0就不同，在PBR金属工作流中认为大多数绝缘体在F0为0.04时视觉上正确
+	vec3 F0=vec3(0.04);
+	F0=mix(F0,albedo,metallic);
+
+	//光源计算
+	vec3 Lo=vec3(0);
+	for(int i=0;i<4;i++)
+	{
+		vec3 L=normalize(lightPositions[i]-WorldPos);
+		vec3 H=normalize(L+V);
+
+		float distance=length(lightPositions[i]-WorldPos);
+		float attenuation =1.0/(distance*distance);//在物理上这种距离平方的衰减更加准确
+		vec3 radiance=lightColors[i]*attenuation ;
+
+		vec3 F=fresnelSchlick(max(0,dot(H,V)),F0);//cosTheta是H与V点乘
+		float NDF=DistributionGGX(N,H,roughness);
+		float G=GeometrySmith(N,V,L,roughness);
+
+		vec3 nominator=F*NDF*G;
+		float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001; //+0.001是防止分母为0
+		vec3 specular= nominator / denominator;  
+
+		vec3 KS=F;//反射率（specular）
+		vec3 KD=vec3(1.0)-F;//折射率（diffuse）
+		KD*=1.0-metallic;//如果是金属（即metallic为0，全金属）就不会进行折射
+
+		float NdotL=max(0,dot(N,L));
+		Lo+=(KD*albedo/PI+specular)*radiance*NdotL;//specular中有KS（KS=F）所以不需要KS
+	}
+	vec3 ambient=vec3(0.03)*albedo*ao;
+	vec3 color=ambient+Lo;
+
+	//HDR映射 因为Lo不断叠加中可能回超过1
+	color=color/(color+vec3(1));
+	//gamma矫正 PBR都是在线性空间的,所以需要进行gamma矫正
+	color=pow(color,vec3(1.0/2.2));
+	fragColor=vec4(color,1);
+}

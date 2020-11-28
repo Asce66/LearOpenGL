@@ -1,0 +1,30 @@
+#version 440 core
+layout(location=0)in vec4 aVertex;
+
+uniform bool confuse,shake,chaos;
+
+uniform float time;
+
+out vec2 Texcoords;
+
+void main()
+{
+	gl_Position=vec4(aVertex.xy,0,1);
+	vec2 tex=aVertex.zw;
+	Texcoords=tex;
+	if(confuse)
+	{
+		Texcoords=vec2(1-tex.x,1-tex.y);
+	}
+	else if(chaos)
+	{
+		float strength=0.3;
+		Texcoords=vec2(tex.x+sin(time)*strength,tex.y+cos(time)*strength);
+	}
+	if(shake)
+	{
+		float strength=0.01;
+		gl_Position.x+=sin(time*10)*strength;
+		gl_Position.y+=cos(time*15)*strength;
+	}
+}

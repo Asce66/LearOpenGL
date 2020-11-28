@@ -1,0 +1,67 @@
+#version 330 core
+
+out vec4 fragColor;
+
+in VS_OUT
+{
+	vec3 FragPos;
+	vec3 Normal;
+	vec2 Texcoords;
+	vec4 FragPosLightSpace;
+}fs_in;
+
+uniform sampler2D diffuseTexture,shadowMap;
+
+uniform vec3 lightPos,viewPos;
+
+//片段在阴影中时是1，不在就是0
+float ShadowCalculation(vec4 fragPosLightSpace,float bias)
+{
+	//执行透视除法(如果是gl_Position，顶点着色器会自动执行，其他变量就需要自己控制了)
+	vec3 projCoords =fragPosLightSpace.xyz/fragPosLightSpace.w;
+	//xyz的范围是[-1,1]，为了用于深度贴图中进行采用，需要变换为[0,1]的范围
+
+	if(projCoords.z>1)//在视锥范围之外的地方，直接认为不在阴影中
+		return 0;
+
+	projCoords=projCoords*0.5+0.5;
+
+	float currentDepth=projCoords.z;
+	float shadow=0;
+	vec2 texelSize=1.0/textureSize(shadowMap,0);//textureSize返回mipmap的0级的宽和高，它的倒数就是纹素大小
+	for(int x=-1;x<=1;x++)
+	{
+		for(int y=-1;y<=1;y++)
+		{
+			float closestDepth =texture(shadowMap,projCoords.xy+vec2(x,y)*texelSize).r;
+			//当前片段深度值如果大于采样深度，则片段和光源之间还有物体，该片段处于阴影中
+			shadow+=currentDepth-0.005>closestDepth?1:0;
+		}
+	}	
+	return shadow/9.0;
+}
+
+void main()
+{
+	vec3 color=texture(diffuseTexture,fs_in.Texcoords).rgb;
+	vec3 normal=normalize(fs_in.Normal);
+	vec3 lightColor=vec3(1);
+	//环境光
+	vec3 ambient=lightColor*0.3;
+	//漫反射
+	vec3 lightDir=normalize(lightPos-fs_in.FragPos);
+	float diff=max(0,dot(lightDir,normal));
+	vec3 diffuse=diff*lightColor;
+	//镜面反射
+	vec3 viewDir=normalize(viewPos-fs_in.FragPos);
+	vec3 halfDir=normalize(lightDir+viewDir);
+	float spec=pow(max(dot(halfDir,normal),0),64);
+	vec3 specular=spec*lightColor;
+	//计算阴影
+	float bias=max(0.005,0.05*dot(normal,lightDir));
+	float shadow=ShadowCalculation(fs_in.FragPosLightSpace,bias);
+	
+	vec3 lighting=(ambient+(1-shadow))*(diffuse+specular)*color;
+	fragColor=vec4(lighting,1);
+
+}

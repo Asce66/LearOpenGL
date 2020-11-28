@@ -1,0 +1,20 @@
+#version 330 core
+layout(location=0)in vec3 aPos;
+layout(location=1)in vec3 aNormal;
+layout(std140)uniform Matrices
+{
+	mat4 view;
+	mat4 projection;
+};
+out vec3 normal;
+out vec3 fragPos;
+uniform mat4 model;
+
+void main()
+{
+	//转为3X3矩阵 使得发项失去移动的属性 乘以模型矩阵的逆矩阵的转置矩阵求出法线
+	//世界坐标下的位置 
+	normal=mat3(transpose(inverse(model)))*aNormal;	
+	fragPos=vec3(model*vec4(aPos,1));
+	gl_Position=projection*view*model*vec4(aPos,1);
+}

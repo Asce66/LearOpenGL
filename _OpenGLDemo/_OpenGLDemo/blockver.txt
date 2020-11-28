@@ -1,0 +1,16 @@
+#version 440 core
+layout(location=0)in vec4 aTex;
+
+uniform mat4 projection;
+uniform mat4 model[140];
+uniform vec3 color[140];
+
+out vec2 Texcoords;
+out vec3 Color;
+
+void main()
+{
+	Texcoords=aTex.zw;
+	Color=color[gl_InstanceID];
+	gl_Position=projection*model[gl_InstanceID]*vec4(aTex.xy,0,1);
+}

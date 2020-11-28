@@ -1,0 +1,97 @@
+#version 330 core
+
+in VS_OUT{
+	vec3 TangentNormal;
+	vec3 TangentFragPos;
+	vec3 TangentViewPos;
+	vec3 TangentLightPos;
+	vec2 Texcoords;
+}fs_in;
+
+uniform sampler2D diffuseTexture,normalMap;
+uniform sampler2D depthMap;//视差贴图
+
+uniform float height_scale;
+
+out vec4 fragColor;
+
+//陡峭视差映射
+/*
+使用多个采样点，
+将深度值划分为不同的层数，沿着原本的采样点和现在映射后的采样点的连线方向
+把该层的深度值与深度贴图中的深度值进行比较，选择层深度值<深度贴图深度值为真实的纹理坐标
+缺陷：基于有限采样点，会出现锯齿，图层之间明显断层
+*/
+vec2 ParallaxMappingByLevel(vec2 texcoords,vec3 viewDir)
+{
+    //当垂直看一个表面的时候纹理时位移比以一定角度看时的小。我们可以在垂直看时使用更少的样本（节省性能），
+    //以一定角度看时增加样本数量(z轴正方向等于切线空间中的法线方向，以此来判断视线与物体表面垂直角度)
+     const float minLayers = 8;
+    const float maxLayers = 32;
+    float numberLayer = mix(maxLayers, minLayers, abs(dot(vec3(0.0, 0.0, 1.0), viewDir)));//采样层数
+
+    float layerDepth=1.0/numberLayer;//每一层的深度值
+    float currentLayerDepth=0;
+    vec2 p=viewDir.xy*height_scale;
+    vec2 deltaTexCoords =p/numberLayer;
+
+    vec2 currentTexcoords=texcoords;
+    float currentDepthMapValue=texture(depthMap,currentTexcoords).r;
+
+    while(currentDepthMapValue>currentLayerDepth)
+    {
+        currentTexcoords-=deltaTexCoords;
+        currentDepthMapValue=texture(depthMap,currentTexcoords).r;
+        currentLayerDepth+=layerDepth;
+    }
+
+    //视差遮蔽映射，改正上述缺点
+    /*计算的纹理坐标之前与之后纹理坐标线性插值，按照划分的层级深度进行插值*/
+    // -- parallax occlusion mapping interpolation from here on
+    // get texture coordinates before collision (reverse operations)
+    vec2 prevTexCoords = currentTexcoords + deltaTexCoords;
+
+    // get depth after and before collision for linear interpolation
+    float afterDepth  = currentDepthMapValue - currentLayerDepth;
+    float beforeDepth = texture(depthMap, prevTexCoords).r - currentLayerDepth + layerDepth;
+ 
+    // interpolation of texture coordinates
+    float weight = afterDepth / (afterDepth - beforeDepth);
+    vec2 finalTexCoords = prevTexCoords * weight + currentTexcoords * (1.0 - weight);
+
+    return finalTexCoords;
+
+    return texcoords-currentTexcoords;
+}
+
+vec2 ParallaxMapping(vec2 texcoords,vec3 viewDir)
+{
+	float height=texture(depthMap,texcoords).r;
+    return texcoords-viewDir.xy/viewDir.z*(height*height_scale);
+}
+
+void main()
+{
+	vec3 viewDir=normalize(fs_in.TangentViewPos-fs_in.TangentFragPos);
+	vec2 texcoords=fs_in.Texcoords;
+	//texcoords=ParallaxMapping(texcoords,viewDir);
+    texcoords=ParallaxMappingByLevel(texcoords,viewDir);
+	vec3 normal=texture(normalMap,texcoords).rgb;
+
+	// Get diffuse color
+    vec3 color = texture(diffuseTexture, texcoords).rgb;
+    // Ambient
+    vec3 ambient = 0.1 * color;
+    // Diffuse
+    vec3 lightDir = normalize(fs_in.TangentLightPos - fs_in.TangentFragPos);
+    float diff = max(dot(lightDir, normal), 0.0);
+    vec3 diffuse = diff * color;
+    // Specular    
+    vec3 reflectDir = reflect(-lightDir, normal);
+    vec3 halfwayDir = normalize(lightDir + viewDir);  
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
+
+    vec3 specular = vec3(0.2) * spec;
+    fragColor = vec4(ambient + diffuse + specular, 1.0f);
+
+}

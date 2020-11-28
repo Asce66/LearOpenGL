@@ -1,0 +1,10 @@
+#version 330 core
+in vec2 Texcoords;
+out vec4 fragColor;
+uniform sampler2D text;
+uniform vec3 texColor;
+void main()
+{
+	vec4 sampled =vec4(1,1,1,texture(text,Texcoords).r);//只要透明通道
+	fragColor=vec4(texColor,1)*sampled;
+}

@@ -1,0 +1,24 @@
+#version 330 core
+layout(triangles)in;
+layout(triangle_strip,max_vertices=18)out;
+
+//对应立方体深度贴图的六个方向的view矩阵
+uniform mat4 shadowMatrices[6];
+
+out vec4 fragPos;
+
+void main()
+{
+	for(int face=0;face<6;++face)
+	{
+		//gl_Face:内置变量，可以设置它来指定把每个图形渲染到立方体贴图的哪一个面（前提是附加了立方体贴图）
+		gl_Layer=face;
+		for(int i=0;i<3;i++)
+		{
+			fragPos=gl_in[i].gl_Position;
+			gl_Position=shadowMatrices[face]*fragPos;
+			EmitVertex();
+		}
+		EndPrimitive();
+	}
+}

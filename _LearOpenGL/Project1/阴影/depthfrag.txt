@@ -1,0 +1,5 @@
+#version 330 core//着色器啥也不干
+void main()
+{
+	
+}

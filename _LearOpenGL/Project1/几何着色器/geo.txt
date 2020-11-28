@@ -1,0 +1,38 @@
+#version 330 core
+layout(points)in;//传入几何着色器的图元
+layout (triangle_strip, max_vertices = 5) out;//传出的图元 最多传出的顶点数
+in VS_OUT{
+	vec3 color;
+}gs_in[];//顶点着色器可能传来多个顶点，索引用数组(这个例子其实只有一个顶点)
+out vec3 fColor;
+
+void build_house(vec4 position)
+{    
+    //顶点着色器传过来了一个顶点，但是我们通过不同的偏移最终生成了五个点
+    fColor = gs_in[0].color; // gs_in[0] since there's only one input vertex
+    gl_Position = position + vec4(-0.2, -0.2, 0.0, 0.0); // 1:bottom-left   
+    EmitVertex();   //添加gl_Position的向量到图元中
+    gl_Position = position + vec4( 0.2, -0.2, 0.0, 0.0); // 2:bottom-right
+    EmitVertex();
+    gl_Position = position + vec4(-0.2,  0.2, 0.0, 0.0); // 3:top-left
+    EmitVertex();
+    gl_Position = position + vec4( 0.2,  0.2, 0.0, 0.0); // 4:top-right
+    EmitVertex();
+    gl_Position = position + vec4( 0.0,  0.4, 0.0, 0.0); // 5:top
+    fColor = vec3(1.0, 1.0, 1.0);
+    EmitVertex();
+    EndPrimitive();//所有发出（EmitVertex）的顶点会组合成目标输出图元 多次调用就会多次生成图元
+}
+
+void main()
+{	
+    build_house(gl_in[0].gl_Position);
+}
+//gl_in[]内置的数组，由顶点着色器传过来的，具体结构大致（可能）如下
+/*
+in gl_Vertex{
+    vec4  gl_Position;
+    float gl_PointSize;
+    float gl_ClipDistance[];
+}gl_in[];
+*/

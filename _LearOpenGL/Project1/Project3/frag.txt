@@ -1,0 +1,12 @@
+#version 330 core
+uniform sampler2D texture1;
+in vec2 Texcoords;
+out vec4 fragColor;
+
+void main()
+{
+	vec4 col=texture(texture1,Texcoords);
+	//if(col.a<0.1f)
+		//discard;  //Éî¶È²âÊÔ
+	fragColor=col;
+}
